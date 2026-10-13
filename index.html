@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="ja" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+ <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-512.png">
+    <link rel="icon" type="image/png" href="icon-512.png">
+    <meta name="theme-color" content="#0f172a">
+
+   <title>職人一発計算 - 現場勾配＆資材電卓</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fffbebeb',
+                            100: '#fef3c7',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            700: '#b45309',
+                        },
+                        site: {
+                            dark: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            accent: '#f59e0b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        /* Custom scrollbar for tab containers */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between pb-28 select-none">
+
+    <!-- App Header -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-30 shadow-md">
+        <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <div class="bg-amber-500 text-slate-950 p-2 rounded-lg font-black text-xl flex items-center justify-center w-10 h-10 shadow-lg shadow-amber-500/20">
+                    <i class="fa-solid font-black text-lg">⚡</i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight tracking-wide text-amber-400" id="ui-app-title">職人一発計算</h1>
+                    <p class="text-xs text-slate-400" id="ui-app-subtitle">現場勾配 ＆ 資材電卓 Pro</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2">
+                <!-- PRO Badge / Unlock -->
+                <button id="btn-pro-status" onclick="openProModal()" class="px-2.5 py-1 text-xs font-bold rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition flex items-center space-x-1">
+                    <i class="fa-solid fa-crown text-amber-400"></i>
+                    <span id="txt-pro-status">FREE</span>
+                </button>
+
+                <!-- Language Toggle Dropdown -->
+                <select id="lang-select" onchange="changeLanguage(this.value)" class="bg-slate-700 text-slate-200 text-xs rounded-lg px-2 py-1.5 border border-slate-600 focus:outline-none focus:border-amber-500">
+                    <option value="ja">日本語</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto w-full px-4 py-4 flex-1">
+        <!-- Navigation Tabs -->
+        <div class="flex border-b border-slate-700 mb-5 bg-slate-800/60 p-1 rounded-xl shadow-inner">
+            <button id="tab-btn-slope" onclick="switchTab('slope')" class="flex-1 py-3 px-2 text-center rounded-lg font-bold text-sm transition-all duration-200 flex items-center justify-center space-x-1.5 bg-amber-500 text-slate-950 shadow-md">
+                <i class="fa-solid fa-ruler-combined"></i>
+                <span data-i18n="tabSlope">勾配・屋根</span>
+            </button>
+            <button id="tab-btn-material" onclick="switchTab('material')" class="flex-1 py-3 px-2 text-center rounded-lg font-bold text-sm text-slate-400 hover:text-slate-200 transition-all duration-200 flex items-center justify-center space-x-1.5">
+                <i class="fa-solid fa-cubes"></i>
+                <span data-i18n="tabMaterial">資材計算</span>
+            </button>
+            <button id="tab-btn-history" onclick="switchTab('history')" class="flex-1 py-3 px-2 text-center rounded-lg font-bold text-sm text-slate-400 hover:text-slate-200 transition-all duration-200 flex items-center justify-center space-x-1.5">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span data-i18n="tabHistory">履歴・共有</span>
+            </button>
+        </div>
+
+        <!-- ================= TAB 1: SLOPE & PITCH CALCULATOR ================= -->
+        <section id="tab-slope" class="space-y-4">
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+                <h2 class="text-base font-bold text-amber-400 mb-3 flex items-center space-x-2">
+                    <i class="fa-solid fa-drafting-compass"></i>
+                    <span data-i18n="slopeTitle">屋根・勾配・斜辺計算</span>
+                </h2>
+
+                <!-- Calculation Mode Selector -->
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <button id="mode-base-height" onclick="setSlopeMode('base-height')" class="py-2 px-3 text-xs font-semibold rounded-lg border border-amber-500 bg-amber-500/20 text-amber-300">
+                        <span data-i18n="modeBaseHeight">底辺 ＋ 高さ から計算</span>
+                    </button>
+                    <button id="mode-base-angle" onclick="setSlopeMode('base-angle')" class="py-2 px-3 text-xs font-semibold rounded-lg border border-slate-600 bg-slate-700/50 text-slate-400">
+                        <span data-i18n="modeBaseAngle">底辺 ＋ 角度/寸 から計算</span>
+                    </button>
+                </div>
+
+                <!-- Input Group Base / Span -->
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-300 mb-1" data-i18n="labelBase">底辺 / 水平距離 (mm)</label>
+                        <div class="relative">
+                            <input type="number" id="slope-base" placeholder="例: 3640" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 px-3 text-lg font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-500">
+                            <span class="absolute right-3 top-3.5 text-xs text-slate-500 font-bold">mm</span>
+                        </div>
+                    </div>
+
+                    <!-- Input Height (Mode 1) -->
+                    <div id="group-slope-height">
+                        <label class="block text-xs font-medium text-slate-300 mb-1" data-i18n="labelHeight">高さ / 垂直差 (mm)</label>
+                        <div class="relative">
+                            <input type="number" id="slope-height" placeholder="例: 1820" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 px-3 text-lg font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-500">
+                            <span class="absolute right-3 top-3.5 text-xs text-slate-500 font-bold">mm</span>
+                        </div>
+                    </div>
+
+                    <!-- Input Angle / Pitch (Mode 2) -->
+                    <div id="group-slope-angle" class="hidden">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1" data-i18n="labelAngle">角度 (度 °)</label>
+                                <input type="number" step="0.1" id="slope-angle" placeholder="例: 26.5" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 px-3 text-lg font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-300 mb-1" data-i18n="labelSun">勾配 (寸/10寸)</label>
+                                <input type="number" step="0.1" id="slope-sun" placeholder="例: 5.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg py-3 px-3 text-lg font-mono font-bold text-amber-400 focus:outline-none focus:border-amber-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button onclick="calculateSlope()" class="w-full mt-5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3.5 rounded-xl text-base shadow-lg shadow-amber-500/20 active:scale-98 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span data-i18n="btnCalculate">一発計算実行</span>
+                </button>
+            </div>
+
+            <!-- Result Card -->
+            <div id="slope-result-card" class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center">
+                    <span data-i18n="calcResult">計算結果</span>
+                    <button onclick="copyResults('slope')" class="text-amber-400 hover:text-amber-300 text-xs flex items-center space-x-1">
+                        <i class="fa-regular fa-copy"></i>
+                        <span data-i18n="btnCopy">結果コピー</span>
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700/80">
+                        <div class="text-xs text-slate-400" data-i18n="resHypotenuse">斜辺長さ (勾配長)</div>
+                        <div class="text-xl font-mono font-black text-amber-400 mt-1" id="res-hypotenuse">0 <span class="text-xs font-normal text-slate-400">mm</span></div>
+                    </div>
+                    <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700/80">
+                        <div class="text-xs text-slate-400" data-i18n="resGradient">勾配 (寸 / 度)</div>
+                        <div class="text-xl font-mono font-black text-amber-400 mt-1" id="res-gradient">0 <span class="text-xs font-normal text-slate-400">寸 / 0°</span></div>
+                    </div>
+                    <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700/80">
+                        <div class="text-xs text-slate-400" data-i18n="resHeight">垂直高さ</div>
+                        <div class="text-xl font-mono font-bold text-slate-200 mt-1" id="res-slope-height">0 <span class="text-xs font-normal text-slate-400">mm</span></div>
+                    </div>
+                    <div class="bg-slate-900/80 p-3 rounded-lg border border-slate-700/80">
+                        <div class="text-xs text-slate-400" data-i18n="resFactor">伸び率 (倍率)</div>
+                        <div class="text-xl font-mono font-bold text-slate-200 mt-1" id="res-factor">1.000</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: MATERIAL ESTIMATOR ================= -->
+        <section id="tab-material" class="space-y-4 hidden">
+            <!-- Material Category Tabs -->
+            <div class="flex space-x-2 border-b border-slate-700 pb-2 overflow-x-auto no-scrollbar">
+                <button id="mat-sub-concrete" onclick="switchMaterialSubTab('concrete')" class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-amber-500 text-slate-950">
+                    <i class="fa-solid fa-cubes-stacked mr-1"></i><span data-i18n="matConcrete">コンクリ・モルタル</span>
+                </button>
+                <button id="mat-sub-flooring" onclick="switchMaterialSubTab('flooring')" class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-slate-800 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-border-all mr-1"></i><span data-i18n="matFlooring">床・クロス・畳</span>
+                </button>
+                <button id="mat-sub-weight" onclick="switchMaterialSubTab('weight')" class="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-slate-800 text-slate-300 hover:text-white">
+                    <i class="fa-solid fa-weight-hanging mr-1"></i><span data-i18n="matWeight">鋼材・木材重量</span>
+                </button>
+            </div>
+
+            <!-- SubTab: Concrete -->
+            <div id="sub-concrete" class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3">
+                <h3 class="text-sm font-bold text-amber-400" data-i18n="matConcreteTitle">生コン・モルタル調合資材計算</h3>
+                
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelLength">縦 (m)</label>
+                        <input type="number" step="0.01" id="conc-length" placeholder="5.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelWidth">横 (m)</label>
+                        <input type="number" step="0.01" id="conc-width" placeholder="3.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelThickness">厚み (mm)</label>
+                        <input type="number" id="conc-depth" placeholder="100" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1" data-i18n="labelMixRatio">配合タイプ</label>
+                    <select id="conc-mix-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200">
+                        <option value="concrete" data-i18n="mixConcrete">コンクリート (セメント:砂:砂利 = 1:2:4)</option>
+                        <option value="mortar" data-i18n="mixMortar">モルタル (セメント:砂 = 1:3)</option>
+                    </select>
+                </div>
+
+                <button onclick="calculateConcrete()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-sm shadow-md transition">
+                    <span data-i18n="btnCalcMaterial">資材数一発計算</span>
+                </button>
+
+                <div class="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-700 space-y-2">
+                    <div class="flex justify-between items-center text-xs text-slate-400">
+                        <span data-i18n="resTotalVolume">必要立米数 (m³)</span>
+                        <span id="res-conc-volume" class="text-base font-mono font-bold text-amber-400">0.00 m³</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-400 border-t border-slate-800 pt-2">
+                        <span data-i18n="resCementBags">セメント袋数 (25kg袋)</span>
+                        <span id="res-conc-cement" class="text-base font-mono font-bold text-slate-200">0 袋</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-400 border-t border-slate-800 pt-2">
+                        <span data-i18n="resSandBags">砂 (20kg袋) / 砂利</span>
+                        <span id="res-conc-sand" class="text-base font-mono font-bold text-slate-200">0 袋</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SubTab: Flooring / Cross / Tatami -->
+            <div id="sub-flooring" class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3 hidden">
+                <h3 class="text-sm font-bold text-amber-400" data-i18n="matFlooringTitle">床面積・クロス・畳数計算</h3>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelAreaWidth">幅 (m)</label>
+                        <input type="number" step="0.01" id="floor-width" placeholder="4.5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelAreaHeight">奥行 / 高さ (m)</label>
+                        <input type="number" step="0.01" id="floor-height" placeholder="6.0" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                </div>
+
+                <button onclick="calculateFlooring()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-sm shadow-md transition">
+                    <span data-i18n="btnCalcMaterial">面積＆換算計算</span>
+                </button>
+
+                <div class="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-700 space-y-2">
+                    <div class="flex justify-between items-center text-xs text-slate-400">
+                        <span data-i18n="resAreaSqMeter">施工面積 (㎡)</span>
+                        <span id="res-floor-sqm" class="text-base font-mono font-bold text-amber-400">0.00 ㎡</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-400 border-t border-slate-800 pt-2">
+                        <span data-i18n="resTatami">江戸間 畳数 (帖)</span>
+                        <span id="res-floor-tatami" class="text-base font-mono font-bold text-slate-200">0.0 帖</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-400 border-t border-slate-800 pt-2">
+                        <span data-i18n="resCrossMeters">クロス(巾0.9m)目安長</span>
+                        <span id="res-floor-cross" class="text-base font-mono font-bold text-slate-200">0.0 m</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SubTab: Weight Calc -->
+            <div id="sub-weight" class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3 hidden">
+                <h3 class="text-sm font-bold text-amber-400" data-i18n="matWeightTitle">鋼材・木材・各種重量計算</h3>
+
+                <div>
+                    <label class="block text-xs text-slate-300 mb-1" data-i18n="labelMaterialType">材質種別</label>
+                    <select id="weight-mat-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200">
+                        <option value="7.85" data-i18n="matSteel">鋼材 / 鉄 (比重: 7.85)</option>
+                        <option value="2.70" data-i18n="matAluminum">アルミニウム (比重: 2.70)</option>
+                        <option value="0.60" data-i18n="matWood">木材・スギ等 (比重: 0.60)</option>
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelThicknessMm">厚み (mm)</label>
+                        <input type="number" id="weight-thick" placeholder="9" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelWidthMm">幅 (mm)</label>
+                        <input type="number" id="weight-width" placeholder="1000" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-300 mb-1" data-i18n="labelLengthMm">長さ (mm)</label>
+                        <input type="number" id="weight-length" placeholder="2000" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-amber-400 font-mono font-bold text-sm focus:outline-none">
+                    </div>
+                </div>
+
+                <button onclick="calculateWeight()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 rounded-xl text-sm shadow-md transition">
+                    <span data-i18n="btnCalcMaterial">重量算出</span>
+                </button>
+
+                <div class="mt-4 p-3 bg-slate-900/80 rounded-lg border border-slate-700">
+                    <div class="flex justify-between items-center text-xs text-slate-400">
+                        <span data-i18n="resCalculatedWeight">推定総重量</span>
+                        <span id="res-weight-kg" class="text-lg font-mono font-bold text-amber-400">0.00 kg</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: HISTORY & PRO / SHARE ================= -->
+        <section id="tab-history" class="space-y-4 hidden">
+            <!-- Calculation History Section -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-sm font-bold text-amber-400 flex items-center space-x-2">
+                        <i class="fa-solid fa-list-check"></i>
+                        <span data-i18n="historyTitle">現場計算メモ・ログ</span>
+                    </h2>
+                    <div class="flex space-x-2">
+                        <button onclick="exportHistoryCSV()" class="px-2.5 py-1 text-xs bg-slate-700 hover:bg-slate-600 text-amber-400 border border-slate-600 rounded-md font-medium">
+                            <i class="fa-solid fa-file-csv mr-1"></i>CSV
+                        </button>
+                        <button onclick="clearHistory()" class="px-2.5 py-1 text-xs bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 rounded-md font-medium">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="history-container" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    <div class="text-xs text-slate-500 text-center py-6" id="history-empty-msg" data-i18n="msgNoHistory">
+                        計算履歴はまだありません。
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Share & Spread Section -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg space-y-3">
+                <h2 class="text-sm font-bold text-amber-400 flex items-center space-x-2">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span data-i18n="shareTitle">現場仲間へアプリを共有</span>
+                </h2>
+                <p class="text-xs text-slate-400" data-i18n="shareDesc">
+                    職人仲間や現場監督にこのアプリを教えて、作業効率を爆上げしましょう！
+                </p>
+                <button onclick="shareApp()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-3 rounded-xl text-xs border border-slate-600 transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-paper-plane text-amber-400"></i>
+                    <span data-i18n="btnShareApp">アプリをシェア・URLコピー</span>
+                </button>
+            </div>
+
+            <!-- PRO Upgrade Card -->
+            <div class="bg-gradient-to-br from-amber-500/10 via-slate-800 to-slate-800 p-4 rounded-xl border border-amber-500/30 shadow-lg space-y-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-crown text-amber-400 text-xl"></i>
+                    <div>
+                        <h3 class="text-sm font-bold text-amber-400" data-i18n="proCardTitle">500円PRO版 ライセンス</h3>
+                        <p class="text-xs text-slate-400" data-i18n="proCardSub">広告非表示 ＋ CSV無制限出力</p>
+                    </div>
+                </div>
+                <button onclick="openProModal()" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black py-2.5 rounded-xl text-xs shadow-md">
+                    <span id="btn-pro-action-label" data-i18n="btnUnlockPro">PROライセンスを有効化する</span>
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Fixed Bottom Banner Ad (Mock AdMob) -->
+    <div id="admob-banner" class="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 p-2 text-center z-20 flex items-center justify-between px-4 h-14">
+        <div class="flex items-center space-x-2">
+            <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold px-1.5 py-0.5 rounded">Ad</span>
+            <span class="text-xs text-slate-300 font-medium truncate max-w-[220px] sm:max-w-md" id="txt-ad-title">建材・工具 一括現場配送ネット</span>
+        </div>
+        <button onclick="openProModal()" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 px-2 py-1 rounded border border-slate-700 whitespace-nowrap" data-i18n="btnHideAd">
+            広告非表示
+        </button>
+    </div>
+
+    <!-- Interstitial Ad Modal (Triggers every 3 calculation actions) -->
+    <div id="modal-interstitial" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl relative">
+          <button onclick="closeInterstitialAd()" class="text-slate-400 hover:text-white p-2 absolute top-2 right-2 z-10"><i class="fa-solid fa-xmark text-xl"></i></button>
+    
+    <div class="absolute top-3 right-3">
+  <div class="absolute top-3 right-3">
+                <span class="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] font-bold px-2 py-0.5 rounded">AdMob</span>
+            </div>
+            
+            <div class="w-16 h-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto text-amber-400 text-2xl border border-amber-500/30">
+                <i class="fa-solid fa-truck-fast"></i>
+            </div>
+
+            <div>
+                <h3 class="text-base font-bold text-slate-100">現場爆速配送ツール</h3>
+                <p class="text-xs text-slate-400 mt-1">当日注文・翌日現場納品！プロの資材手配プラットフォーム。</p>
+            </div>
+
+            <button onclick="closeInterstitialAd()" class="w-full bg-slate-700 hover:bg-slate-600 text-slate-100 font-bold py-3 rounded-xl text-xs border border-slate-600 transition" data-i18n="btnCloseAd">
+                広告を閉じて計算画面に戻る
+            </button>
+        </div>
+    </div>
+
+    <!-- PRO License Purchase Modal -->
+    <div id="modal-pro" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-amber-500/40 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
+            <button onclick="closeProModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+
+            <div class="text-center space-y-1">
+                <i class="fa-solid fa-crown text-amber-400 text-3xl"></i>
+                <h3 class="text-lg font-black text-amber-400" data-i18n="proModalTitle">PROバージョンへ昇格</h3>
+                <p class="text-xs text-slate-400" data-i18n="proModalSub">買い切り 500円 (Tax in)</p>
+            </div>
+
+            <ul class="text-xs text-slate-300 space-y-2 bg-slate-900/60 p-3 rounded-xl border border-slate-700/80">
+                <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-amber-400"></i><span data-i18n="proFeat1">画面上下の広告を完全永久非表示</span></li>
+                <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-amber-400"></i><span data-i18n="proFeat2">計算結果のCSV無制限エクスポート</span></li>
+                <li class="flex items-center space-x-2"><i class="fa-solid fa-check text-amber-400"></i><span data-i18n="proFeat3">現場メモリ無制限保存</span></li>
+            </ul>
+
+            <button onclick="toggleProLicense()" id="btn-toggle-pro" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3.5 rounded-xl text-sm shadow-lg shadow-amber-500/20 transition">
+                ライセンスを有効化（テスト解錠）
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast Notification Popup -->
+    <div id="toast-message" class="fixed top-5 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 px-4 py-2 rounded-full font-bold text-xs shadow-xl z-50 transition-all duration-300 opacity-0 pointer-events-none flex items-center space-x-1.5">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toast-text">メッセージ</span>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           STATE & CONFIGURATION
+           ========================================================================== */
+        let isPro = false;
+        let actionCount = 0;
+        let currentLang = 'ja';
+        let currentSlopeMode = 'base-height'; // 'base-height' or 'base-angle'
+        let calculationLogs = [];
+
+        /* i18n Translations Dictionary */
+        const translations = {
+            ja: {
+                tabSlope: "勾配・屋根",
+                tabMaterial: "資材計算",
+                tabHistory: "履歴・共有",
+                slopeTitle: "屋根・勾配・斜辺計算",
+                modeBaseHeight: "底辺 ＋ 高さ から計算",
+                modeBaseAngle: "底辺 ＋ 角度/寸 から計算",
+                labelBase: "底辺 / 水平距離 (mm)",
+                labelHeight: "高さ / 垂直差 (mm)",
+                labelAngle: "角度 (度 °)",
+                labelSun: "勾配 (寸/10寸)",
+                btnCalculate: "一発計算実行",
+                calcResult: "計算結果",
+                btnCopy: "結果コピー",
+                resHypotenuse: "斜辺長さ (勾配長)",
+                resGradient: "勾配 (寸 / 度)",
+                resHeight: "垂直高さ",
+                resFactor: "伸び率 (倍率)",
+                matConcrete: "コンクリ・モルタル",
+                matFlooring: "床・クロス・畳",
+                matWeight: "鋼材・木材重量",
+                matConcreteTitle: "生コン・モルタル調合資材計算",
+                labelLength: "縦 (m)",
+                labelWidth: "横 (m)",
+                labelThickness: "厚み (mm)",
+                labelMixRatio: "配合タイプ",
+                mixConcrete: "コンクリート (セメント:砂:砂利 = 1:2:4)",
+                mixMortar: "モルタル (セメント:砂 = 1:3)",
+                btnCalcMaterial: "資材数一発計算",
+                resTotalVolume: "必要立米数 (m³)",
+                resCementBags: "セメント袋数 (25kg袋)",
+                resSandBags: "砂 (20kg袋) / 砂利",
+                matFlooringTitle: "床面積・クロス・畳数計算",
+                labelAreaWidth: "幅 (m)",
+                labelAreaHeight: "奥行 / 高さ (m)",
+                resAreaSqMeter: "施工面積 (㎡)",
+                resTatami: "江戸間 畳数 (帖)",
+                resCrossMeters: "クロス(巾0.9m)目安長",
+                matWeightTitle: "鋼材・木材・各種重量計算",
+                labelMaterialType: "材質種別",
+                matSteel: "鋼材 / 鉄 (比重: 7.85)",
+                matAluminum: "アルミニウム (比重: 2.70)",
+                matWood: "木材・スギ等 (比重: 0.60)",
+                labelThicknessMm: "厚み (mm)",
+                labelWidthMm: "幅 (mm)",
+                labelLengthMm: "長さ (mm)",
+                resCalculatedWeight: "推定総重量",
+                historyTitle: "現場計算メモ・ログ",
+                msgNoHistory: "計算履歴はまだありません。",
+                shareTitle: "現場仲間へアプリを共有",
+                shareDesc: "職人仲間や現場監督にこのアプリを教えて、作業効率を爆上げしましょう！",
+                btnShareApp: "アプリをシェア・URLコピー",
+                proCardTitle: "500円PRO版 ライセンス",
+                proCardSub: "広告非表示 ＋ CSV無制限出力",
+                btnUnlockPro: "PROライセンスを有効化する",
+                btnHideAd: "広告非表示",
+                btnCloseAd: "広告を閉じて計算画面に戻る",
+                proModalTitle: "PROバージョンへ昇格",
+                proModalSub: "買い切り 500円 (Tax in)",
+                proFeat1: "画面上下の広告を完全永久非表示",
+                proFeat2: "計算結果のCSV無制限エクスポート",
+                proFeat3: "現場メモリ無制限保存"
+            },
+            en: {
+                tabSlope: "Slope & Roof",
+                tabMaterial: "Materials",
+                tabHistory: "History & Share",
+                slopeTitle: "Roof & Pitch Calculator",
+                modeBaseHeight: "Base + Height",
+                modeBaseAngle: "Base + Angle / Pitch",
+                labelBase: "Base / Horizontal Span (mm)",
+                labelHeight: "Height / Vertical Drop (mm)",
+                labelAngle: "Angle (Degrees °)",
+                labelSun: "Japanese Pitch (Sun/10)",
+                btnCalculate: "Calculate Now",
+                calcResult: "Results",
+                btnCopy: "Copy Result",
+                resHypotenuse: "Hypotenuse (Rafter Length)",
+                resGradient: "Pitch / Angle",
+                resHeight: "Vertical Height",
+                resFactor: "Multiplier Factor",
+                matConcrete: "Concrete/Mortar",
+                matFlooring: "Floor & Carpet",
+                matWeight: "Steel & Timber",
+                matConcreteTitle: "Concrete & Mortar Estimator",
+                labelLength: "Length (m)",
+                labelWidth: "Width (m)",
+                labelThickness: "Thickness (mm)",
+                labelMixRatio: "Mix Proportion",
+                mixConcrete: "Concrete (Cement:Sand:Gravel = 1:2:4)",
+                mixMortar: "Mortar (Cement:Sand = 1:3)",
+                btnCalcMaterial: "Estimate Quantities",
+                resTotalVolume: "Total Volume (m³)",
+                resCementBags: "Cement Bags (25kg)",
+                resSandBags: "Sand Bags (20kg)",
+                matFlooringTitle: "Flooring & Wallpaper Area",
+                labelAreaWidth: "Width (m)",
+                labelAreaHeight: "Length / Height (m)",
+                resAreaSqMeter: "Total Area (m²)",
+                resTatami: "Tatami Mats (Edoma)",
+                resCrossMeters: "Wallpaper Length (0.9m w)",
+                matWeightTitle: "Steel & Timber Weight Calc",
+                labelMaterialType: "Material Type",
+                matSteel: "Steel / Iron (Density: 7.85)",
+                matAluminum: "Aluminum (Density: 2.70)",
+                matWood: "Timber / Wood (Density: 0.60)",
+                labelThicknessMm: "Thickness (mm)",
+                labelWidthMm: "Width (mm)",
+                labelLengthMm: "Length (mm)",
+                resCalculatedWeight: "Estimated Weight",
+                historyTitle: "Calculation Logs",
+                msgNoHistory: "No calculation history available yet.",
+                shareTitle: "Share with Coworkers",
+                shareDesc: "Share this tool with fellow workers on site to boost job efficiency!",
+                btnShareApp: "Share App / Copy Link",
+                proCardTitle: "Pro License ($3.99)",
+                proCardSub: "Ad-free + Unlimited CSV Export",
+                btnUnlockPro: "Activate PRO License",
+                btnHideAd: "Remove Ads",
+                btnCloseAd: "Close Ad and Resume",
+                proModalTitle: "Upgrade to PRO Version",
+                proModalSub: "One-time Purchase $3.99",
+                proFeat1: "Permanently Remove All Ads",
+                proFeat2: "Unlimited CSV Data Export",
+                proFeat3: "Unlimited History Memory"
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Auto detect language
+            const userLang = (navigator.language || navigator.userLanguage || 'ja').substring(0, 2);
+            currentLang = userLang === 'ja' ? 'ja' : 'en';
+            document.getElementById('lang-select').value = currentLang;
+            
+            // Load PRO State
+            isPro = localStorage.getItem('shokunin_pro_unlocked') === 'true';
+            updateProUI();
+
+            // Load Logs
+            const savedLogs = localStorage.getItem('shokunin_logs');
+            if (savedLogs) {
+                try { calculationLogs = JSON.parse(savedLogs); } catch (e) { calculationLogs = []; }
+            }
+
+            // Sync Pitch inputs dynamically
+            const angleInput = document.getElementById('slope-angle');
+            const sunInput = document.getElementById('slope-sun');
+            
+            angleInput.addEventListener('input', () => {
+                if (angleInput.value) {
+                    const deg = parseFloat(angleInput.value);
+                    const sun = Math.tan(deg * Math.PI / 180) * 10;
+                    sunInput.value = isNaN(sun) ? '' : sun.toFixed(1);
+                }
+            });
+
+            sunInput.addEventListener('input', () => {
+                if (sunInput.value) {
+                    const sun = parseFloat(sunInput.value);
+                    const deg = Math.atan(sun / 10) * (180 / Math.PI);
+                    angleInput.value = isNaN(deg) ? '' : deg.toFixed(1);
+                }
+            });
+
+const autoCalcInputs = [
+                'slope-base', 'slope-height', 'slope-angle', 'slope-sun',
+                'conc-length', 'conc-width', 'conc-depth',
+                'floor-width', 'floor-height',
+                'weight-thick', 'weight-width', 'weight-length'
+            ];
+            autoCalcInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', () => {
+                        if (id.startsWith('slope')) calculateSlope();
+                        else if (id.startsWith('conc')) calculateConcrete();
+                        else if (id.startsWith('floor')) calculateFlooring();
+                        else if (id.startsWith('weight')) calculateWeight();
+                    });
+                }
+            });
+
+            applyTranslations();
+            renderHistory();
+        });
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            applyTranslations();
+        }
+
+        function applyTranslations() {
+            const dictionary = translations[currentLang] || translations.ja;
+            document.querySelectorAll('[data-i18n]').forEach(elem => {
+                const key = elem.getAttribute('data-i18n');
+                if (dictionary[key]) {
+                    elem.innerText = dictionary[key];
+                }
+            });
+        }
+
+        function switchTab(tabName) {
+            ['slope', 'material', 'history'].forEach(t => {
+                const target = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (t === tabName) {
+                    target.classList.remove('hidden');
+                    btn.className = "flex-1 py-3 px-2 text-center rounded-lg font-bold text-sm transition-all duration-200 flex items-center justify-center space-x-1.5 bg-amber-500 text-slate-950 shadow-md";
+                } else {
+                    target.classList.add('hidden');
+                    btn.className = "flex-1 py-3 px-2 text-center rounded-lg font-bold text-sm text-slate-400 hover:text-slate-200 transition-all duration-200 flex items-center justify-center space-x-1.5";
+                }
+            });
+        }
+
+        function switchMaterialSubTab(subTab) {
+            ['concrete', 'flooring', 'weight'].forEach(st => {
+                const target = document.getElementById(`sub-${st}`);
+                const btn = document.getElementById(`mat-sub-${st}`);
+                if (st === subTab) {
+                    target.classList.remove('hidden');
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-amber-500 text-slate-950";
+                } else {
+                    target.classList.add('hidden');
+                    btn.className = "px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-slate-800 text-slate-300 hover:text-white";
+                }
+            });
+        }
+
+        function setSlopeMode(mode) {
+            currentSlopeMode = mode;
+            const btnBH = document.getElementById('mode-base-height');
+            const btnBA = document.getElementById('mode-base-angle');
+            const grpHeight = document.getElementById('group-slope-height');
+            const grpAngle = document.getElementById('group-slope-angle');
+
+            if (mode === 'base-height') {
+                btnBH.className = "py-2 px-3 text-xs font-semibold rounded-lg border border-amber-500 bg-amber-500/20 text-amber-300";
+                btnBA.className = "py-2 px-3 text-xs font-semibold rounded-lg border border-slate-600 bg-slate-700/50 text-slate-400";
+                grpHeight.classList.remove('hidden');
+                grpAngle.classList.add('hidden');
+            } else {
+                btnBA.className = "py-2 px-3 text-xs font-semibold rounded-lg border border-amber-500 bg-amber-500/20 text-amber-300";
+                btnBH.className = "py-2 px-3 text-xs font-semibold rounded-lg border border-slate-600 bg-slate-700/50 text-slate-400";
+                grpAngle.classList.remove('hidden');
+                grpHeight.classList.add('hidden');
+            }
+        }
+
+        function calculateSlope() {
+            triggerActionCount();
+            const base = parseFloat(document.getElementById('slope-base').value) || 0;
+            if (base <= 0) {
+                showToast(currentLang === 'ja' ? '底辺を入力してください' : 'Please enter base length');
+                return;
+            }
+
+            let height = 0;
+            let angleDeg = 0;
+            let sun = 0;
+
+            if (currentSlopeMode === 'base-height') {
+                height = parseFloat(document.getElementById('slope-height').value) || 0;
+                angleDeg = Math.atan2(height, base) * (180 / Math.PI);
+                sun = (height / base) * 10;
+            } else {
+                angleDeg = parseFloat(document.getElementById('slope-angle').value) || 0;
+                height = base * Math.tan(angleDeg * Math.PI / 180);
+                sun = (height / base) * 10;
+            }
+
+            const hypotenuse = Math.sqrt(base * base + height * height);
+            const factor = hypotenuse / base;
+
+            // UI Render
+            document.getElementById('res-hypotenuse').innerHTML = `${Math.round(hypotenuse)} <span class="text-xs font-normal text-slate-400">mm</span>`;
+            document.getElementById('res-gradient').innerHTML = `${sun.toFixed(1)} <span class="text-xs font-normal text-slate-400">寸 / ${angleDeg.toFixed(1)}°</span>`;
+            document.getElementById('res-slope-height').innerHTML = `${Math.round(height)} <span class="text-xs font-normal text-slate-400">mm</span>`;
+            document.getElementById('res-factor').innerText = factor.toFixed(4);
+
+            // Log
+            saveLog(`勾配計算: 底辺${base}mm ➔ 斜辺 ${Math.round(hypotenuse)}mm (${sun.toFixed(1)}寸)`);
+            showToast(currentLang === 'ja' ? '勾配計算完了！' : 'Slope Calculated!');
+        }
+
+        function calculateConcrete() {
+            triggerActionCount();
+            const length = parseFloat(document.getElementById('conc-length').value) || 0;
+            const width = parseFloat(document.getElementById('conc-width').value) || 0;
+            const depthMm = parseFloat(document.getElementById('conc-depth').value) || 0;
+
+            if (length <= 0 || width <= 0 || depthMm <= 0) {
+                showToast(currentLang === 'ja' ? '縦・横・厚みを入力してください' : 'Enter valid dimensions');
+                return;
+            }
+
+            const volume = length * width * (depthMm / 1000);
+            const type = document.getElementById('conc-mix-type').value;
+
+            let cementBags = 0;
+            let sandBags = 0;
+
+            if (type === 'concrete') {
+                cementBags = Math.ceil(volume * 12);
+                sandBags = Math.ceil(volume * 24);
+            } else {
+                cementBags = Math.ceil(volume * 16);
+                sandBags = Math.ceil(volume * 48);
+            }
+
+            document.getElementById('res-conc-volume').innerText = `${volume.toFixed(2)} m³`;
+            document.getElementById('res-conc-cement').innerText = `${cementBags} 袋`;
+            document.getElementById('res-conc-sand').innerText = `${sandBags} 袋`;
+
+            saveLog(`資材: ${volume.toFixed(2)}m³ ➔ セメント${cementBags}袋 / 砂等${sandBags}袋`);
+            showToast(currentLang === 'ja' ? '資材数算出完了！' : 'Materials Calculated!');
+        }
+
+        function calculateFlooring() {
+            triggerActionCount();
+            const w = parseFloat(document.getElementById('floor-width').value) || 0;
+            const h = parseFloat(document.getElementById('floor-height').value) || 0;
+
+            if (w <= 0 || h <= 0) {
+                showToast(currentLang === 'ja' ? '幅と奥行を入力してください' : 'Enter width & length');
+                return;
+            }
+
+            const sqm = w * h;
+            const tatami = sqm / 1.548; // Edomae standard
+            const crossLength = sqm / 0.9;
+
+            document.getElementById('res-floor-sqm').innerText = `${sqm.toFixed(2)} ㎡`;
+            document.getElementById('res-floor-tatami').innerText = `${tatami.toFixed(1)} 帖`;
+            document.getElementById('res-floor-cross').innerText = `${crossLength.toFixed(1)} m`;
+
+            saveLog(`床面積: ${sqm.toFixed(2)}㎡ (${tatami.toFixed(1)}帖 / クロス${crossLength.toFixed(1)}m)`);
+            showToast(currentLang === 'ja' ? '面積計算完了！' : 'Area Calculated!');
+        }
+
+        function calculateWeight() {
+            triggerActionCount();
+            const density = parseFloat(document.getElementById('weight-mat-type').value) || 7.85;
+            const t = parseFloat(document.getElementById('weight-thick').value) || 0;
+            const w = parseFloat(document.getElementById('weight-width').value) || 0;
+            const l = parseFloat(document.getElementById('weight-length').value) || 0;
+
+            if (t <= 0 || w <= 0 || l <= 0) {
+                showToast(currentLang === 'ja' ? '寸法を入力してください' : 'Enter complete dimensions');
+                return;
+            }
+
+            const volumeCm3 = (t / 10) * (w / 10) * (l / 10);
+            const weightKg = (volumeCm3 * density) / 1000;
+
+            document.getElementById('res-weight-kg').innerText = `${weightKg.toFixed(2)} kg`;
+
+            saveLog(`重量計算: ${t}x${w}x${l}mm ➔ ${weightKg.toFixed(2)} kg`);
+            showToast(currentLang === 'ja' ? '重量計算完了！' : 'Weight Calculated!');
+        }
+
+        function saveLog(text) {
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            calculationLogs.unshift({ id: Date.now(), text, time: timestamp });
+            if (calculationLogs.length > 30) calculationLogs.pop();
+            
+            localStorage.setItem('shokunin_logs', JSON.stringify(calculationLogs));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            if (calculationLogs.length === 0) {
+                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-6" id="history-empty-msg">${translations[currentLang].msgNoHistory}</div>`;
+                return;
+            }
+
+            container.innerHTML = calculationLogs.map(item => `
+                <div class="bg-slate-900/80 p-2.5 rounded-lg border border-slate-700/70 flex justify-between items-center text-xs">
+                    <div class="text-slate-200 font-mono font-medium truncate pr-2">${item.text}</div>
+                    <span class="text-[10px] text-slate-500 font-mono whitespace-nowrap">${item.time}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            calculationLogs = [];
+            localStorage.removeItem('shokunin_logs');
+            renderHistory();
+            showToast(currentLang === 'ja' ? '履歴を消去しました' : 'History cleared');
+        }
+
+        function exportHistoryCSV() {
+            if (!isPro) {
+                openProModal();
+                showToast(currentLang === 'ja' ? 'CSV出力はPRO限定機能です' : 'CSV Export is Pro feature');
+                return;
+            }
+
+            if (calculationLogs.length === 0) {
+                showToast(currentLang === 'ja' ? '出力する履歴がありません' : 'No logs to export');
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,Time,Log\n" 
+                + calculationLogs.map(e => `"${e.time}","${e.text}"`).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `shokunin_calc_logs_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function triggerActionCount() {
+            actionCount++;
+            if (!isPro && actionCount >= 3) {
+                actionCount = 0;
+                document.getElementById('modal-interstitial').classList.remove('hidden');
+            }
+        }
+
+        function closeInterstitialAd() {
+            document.getElementById('modal-interstitial').classList.add('hidden');
+        }
+
+        function shareApp() {
+            const shareData = {
+                title: '職人一発計算 - 現場勾配＆資材電卓',
+                text: '現場で職人さんが爆速で屋根勾配や資材数を一発算出できる必須アプリ！',
+                url: window.location.href
+            };
+
+            if (navigator.share) {
+                navigator.share(shareData).catch(() => {});
+            } else {
+                copyTextToClipboard(window.location.href);
+                showToast(currentLang === 'ja' ? 'アプリURLをコピーしました！' : 'App link copied!');
+            }
+        }
+
+        function copyResults(type) {
+            let textToCopy = '';
+            if (type === 'slope') {
+                const hypo = document.getElementById('res-hypotenuse').innerText;
+                const grad = document.getElementById('res-gradient').innerText;
+                textToCopy = `【勾配計算結果】斜辺: ${hypo} / 勾配: ${grad}`;
+            }
+            copyTextToClipboard(textToCopy);
+            showToast(currentLang === 'ja' ? '計算結果をコピーしました！' : 'Result copied!');
+        }
+
+        function copyTextToClipboard(text) {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+        }
+
+        function openProModal() {
+            document.getElementById('modal-pro').classList.remove('hidden');
+        }
+
+        function closeProModal() {
+            document.getElementById('modal-pro').classList.add('hidden');
+        }
+
+        function toggleProLicense() {
+            isPro = !isPro;
+            localStorage.setItem('shokunin_pro_unlocked', isPro);
+            updateProUI();
+            closeProModal();
+            showToast(isPro ? 'PROライセンスが有効化されました！' : 'FREEモードへ切り替えました');
+        }
+
+        function updateProUI() {
+            const badge = document.getElementById('txt-pro-status');
+            const adBanner = document.getElementById('admob-banner');
+            const proBtnLabel = document.getElementById('btn-pro-action-label');
+            const toggleBtn = document.getElementById('btn-toggle-pro');
+
+            if (isPro) {
+                badge.innerText = 'PRO';
+                badge.className = 'px-2.5 py-1 text-xs font-black rounded-full bg-amber-400 text-slate-950 shadow-md';
+                adBanner.classList.add('hidden');
+                document.body.style.paddingBottom = '0px';
+                if (proBtnLabel) proBtnLabel.innerText = currentLang === 'ja' ? 'ライセンス有効化済み (解除する)' : 'License Active (Deactivate)';
+                if (toggleBtn) toggleBtn.className = "w-full bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-3.5 rounded-xl text-sm transition";
+            } else {
+                badge.innerText = 'FREE';
+                badge.className = 'px-2.5 py-1 text-xs font-bold rounded-full border border-amber-500/50 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition';
+                adBanner.classList.remove('hidden');
+                document.body.style.paddingBottom = '60px';
+                if (proBtnLabel) proBtnLabel.innerText = currentLang === 'ja' ? 'PROライセンスを有効化する (500円)' : 'Activate PRO License ($3.99)';
+                if (toggleBtn) toggleBtn.className = "w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3.5 rounded-xl text-sm shadow-lg shadow-amber-500/20 transition";
+            }
+        }
+
+        /* Toast Helper */
+        function showToast(msg) {
+            const toast = document.getElementById('toast-message');
+            const toastText = document.getElementById('toast-text');
+            toastText.innerText = msg;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0', 'pointer-events-none');
+            }, 2200);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "職人一発計算 - 現場勾配＆資材電卓",
+  "short_name": "職人一発計算",
+  "description": "現場での勾配・伸び率・屋根資材をワンタップ爆速計算！手袋操作対応・完全オフライン電卓",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
